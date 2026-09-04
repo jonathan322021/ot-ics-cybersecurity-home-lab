@@ -2,7 +2,7 @@
 
 
 
-\## Objective
+## Objective
 
 
 
@@ -26,7 +26,7 @@ the IT and OT zones.
 
 
 
-\## Architecture
+## Architecture
 
 
 
@@ -64,11 +64,11 @@ OT\_Lab\_First\_PLC
 
 
 
-\---
+---
 
 
 
-\## ISA/IEC 62443 Concepts
+## ISA/IEC 62443 Concepts
 
 
 
@@ -76,13 +76,13 @@ The exercise demonstrates several ISA/IEC 62443 concepts:
 
 
 
-\- Zones
+- Zones
 
-\- Conduits
+- Conduits
 
-\- Least Privilege
+- Least Privilege
 
-\- Network Segmentation
+- Network Segmentation
 
 \- Restricted Data Flow (FR5)
 
