@@ -1,0 +1,1164 @@
+\# FactoryTalk Optix HMI Integration with OpenPLC via Modbus TCP
+
+
+
+\## Objective
+
+
+
+The objective of this lab was to integrate a FactoryTalk Optix HMI with an OpenPLC Runtime using Modbus TCP and validate the complete control and monitoring path between the HMI and PLC.
+
+
+
+The main objectives were:
+
+
+
+\- Configure a Windows 11 VM as an OT HMI.
+
+\- Configure FactoryTalk Optix as a Modbus TCP client.
+
+\- Connect FactoryTalk Optix to the OpenPLC Modbus TCP server.
+
+\- Map HMI tags to OpenPLC variables.
+
+\- Control the PLC START variable from the HMI.
+
+\- Monitor the MOTOR status from the HMI.
+
+\- Analyze normal Modbus TCP traffic with Wireshark.
+
+\- Establish an initial OT communication baseline.
+
+\- Relate the implementation to ISA/IEC 62443 concepts.
+
+
+
+\---
+
+
+
+\## Lab Architecture
+
+
+
+The HMI and PLC are currently located in the same OT network.
+
+
+
+```text
+
+&#x20;                        INTERNET
+
+&#x20;                           |
+
+&#x20;                        pfSense
+
+&#x20;                   Firewall / Router
+
+&#x20;                   /              \\
+
+&#x20;                  /                \\
+
+&#x20;            IT Network           OT Network
+
+&#x20;         192.168.10.0/24      192.168.20.0/24
+
+&#x20;                                     |
+
+&#x20;                          +----------+----------+
+
+&#x20;                          |                     |
+
+&#x20;                 FactoryTalk Optix          OpenPLC
+
+&#x20;                      HMI VM                Runtime
+
+&#x20;                 192.168.20.20          192.168.20.30
+
+&#x20;                          |                     |
+
+&#x20;                          +--- Modbus TCP/502 --+
+
+```
+
+
+
+\### OT Assets
+
+
+
+| Asset | IP Address | Role |
+
+|---|---|---|
+
+| pfSense OT Interface | 192.168.20.1 | OT Gateway |
+
+| FactoryTalk Optix HMI | 192.168.20.20 | Modbus TCP Client |
+
+| OpenPLC Runtime | 192.168.20.30 | PLC / Modbus TCP Server |
+
+
+
+> \*\*Security Note:\*\* The HMI and PLC are currently in the same Layer 2 subnet. Therefore, direct HMI-to-PLC Modbus traffic does not traverse pfSense. Future lab phases will separate these assets into different security zones to demonstrate firewall-enforced conduits and OT microsegmentation.
+
+
+
+\---
+
+
+
+\## 1. HMI Network Configuration
+
+
+
+The Windows 11 HMI virtual machine was configured with a static IP address.
+
+
+
+```text
+
+IP Address:      192.168.20.20
+
+Subnet Mask:     255.255.255.0
+
+Default Gateway: 192.168.20.1
+
+```
+
+
+
+The configuration was applied from an elevated PowerShell session:
+
+
+
+```powershell
+
+New-NetIPAddress -InterfaceAlias "Ethernet0" -IPAddress 192.168.20.20 -PrefixLength 24 -DefaultGateway 192.168.20.1
+
+```
+
+
+
+Connectivity to the PLC was validated using:
+
+
+
+```powershell
+
+ping 192.168.20.30
+
+```
+
+
+
+TCP connectivity to the Modbus TCP server was then tested:
+
+
+
+```powershell
+
+Test-NetConnection 192.168.20.30 -Port 502
+
+```
+
+
+
+The test confirmed:
+
+
+
+```text
+
+Source:      192.168.20.20
+
+Destination: 192.168.20.30
+
+TCP Port:    502
+
+Result:      Successful
+
+```
+
+
+
+Successful TCP connectivity confirmed network and transport-layer communication, but did not prove that the Modbus addressing or PLC process logic was correct.
+
+
+
+\---
+
+
+
+\## 2. FactoryTalk Optix Project
+
+
+
+A FactoryTalk Optix project was created for the HMI.
+
+
+
+```text
+
+Project: OT\_Lab\_HMI
+
+```
+
+
+
+A Modbus TCP station was configured under the communication drivers.
+
+
+
+```text
+
+CommDrivers
+
+└── ModbusDriver1
+
+&#x20;   └── OpenPLC\_Modbus
+
+```
+
+
+
+The station configuration was:
+
+
+
+| Parameter | Value |
+
+|---|---|
+
+| Protocol | Modbus TCP |
+
+| IP Address | 192.168.20.30 |
+
+| TCP Port | 502 |
+
+| Unit Identifier | 1 |
+
+
+
+This configured FactoryTalk Optix as the Modbus TCP client and OpenPLC as the Modbus TCP server.
+
+
+
+\---
+
+
+
+\## 3. PLC Variable and Modbus Mapping
+
+
+
+The OpenPLC ladder program uses two Boolean variables:
+
+
+
+| PLC Variable | OpenPLC Address | Modbus Coil | Purpose |
+
+|---|---:|---:|---|
+
+| START | %MX0.0 | 8192 | Operator command |
+
+| MOTOR | %MX0.1 | 8193 | Motor status |
+
+
+
+The ladder logic is conceptually:
+
+
+
+```text
+
+&#x20;      START              MOTOR
+
+\--------| |----------------( )--------
+
+```
+
+
+
+When START becomes TRUE, the ladder logic energizes MOTOR.
+
+
+
+The resulting control path is:
+
+
+
+```text
+
+Modbus Coil 8192
+
+&#x20;      |
+
+&#x20;      v
+
+START (%MX0.0)
+
+&#x20;      |
+
+&#x20;      v
+
+&#x20; Ladder Logic
+
+&#x20;      |
+
+&#x20;      v
+
+MOTOR (%MX0.1)
+
+&#x20;      |
+
+&#x20;      v
+
+Modbus Coil 8193
+
+```
+
+
+
+\---
+
+
+
+\## 4. FactoryTalk Optix Tags
+
+
+
+Two Boolean Modbus tags were manually created in FactoryTalk Optix.
+
+
+
+\### START Tag
+
+
+
+```text
+
+Name:        START
+
+Type:        Boolean
+
+Memory Area: Coil
+
+Coil Number: 8192
+
+```
+
+
+
+This tag is used by the HMI to send the operator START command to OpenPLC.
+
+
+
+\### MOTOR Tag
+
+
+
+```text
+
+Name:        Motor
+
+Type:        Boolean
+
+Memory Area: Coil
+
+Coil Number: 8193
+
+```
+
+
+
+This tag is used by the HMI to monitor the MOTOR state generated by the PLC logic.
+
+
+
+\---
+
+
+
+\## 5. HMI Process Control
+
+
+
+A momentary START push button was created in FactoryTalk Optix.
+
+
+
+The button's Active property was dynamically linked to:
+
+
+
+```text
+
+START
+
+```
+
+
+
+The complete control sequence is:
+
+
+
+```text
+
+Operator presses START
+
+&#x20;       |
+
+&#x20;       v
+
+FactoryTalk Optix
+
+&#x20;       |
+
+&#x20;       v
+
+Modbus Coil 8192 = TRUE
+
+&#x20;       |
+
+&#x20;       v
+
+OpenPLC %MX0.0 START = TRUE
+
+&#x20;       |
+
+&#x20;       v
+
+PLC Ladder Logic
+
+&#x20;       |
+
+&#x20;       v
+
+OpenPLC %MX0.1 MOTOR = TRUE
+
+&#x20;       |
+
+&#x20;       v
+
+Modbus Coil 8193 = TRUE
+
+&#x20;       |
+
+&#x20;       v
+
+FactoryTalk Optix MOTOR indication
+
+```
+
+
+
+When the operator releases the momentary button, START returns to FALSE and MOTOR returns to FALSE.
+
+
+
+\---
+
+
+
+\## 6. HMI Status Visualization
+
+
+
+The HMI was configured with a MOTOR status LED.
+
+
+
+The LED Active property was dynamically linked to the `Motor` Modbus tag.
+
+
+
+A conditional converter was added to provide two visual states:
+
+
+
+```text
+
+MOTOR = FALSE → Gray
+
+MOTOR = TRUE  → Green
+
+```
+
+
+
+A second conditional converter was created to display the process state as text:
+
+
+
+```text
+
+MOTOR = FALSE → STOPPED
+
+MOTOR = TRUE  → RUNNING
+
+```
+
+
+
+This provides both color and text feedback to the operator instead of relying only on color.
+
+
+
+\---
+
+
+
+\## 7. Functional Validation
+
+
+
+The complete control loop was successfully validated.
+
+
+
+\### STOPPED State
+
+
+
+\### HMI Evidence — STOPPED
+
+
+
+The following screenshot shows the HMI in its normal stopped state. The MOTOR indicator is inactive and the process status is STOPPED.
+
+
+
+!\[FactoryTalk Optix HMI - STOPPED](../../screenshots/hmi-plc/01-hmi-stopped.png)
+
+
+
+```text
+
+START = FALSE
+
+MOTOR = FALSE
+
+LED   = Gray
+
+Status = STOPPED
+
+```
+
+
+
+\### RUNNING State
+
+
+
+\### HMI Evidence — RUNNING
+
+
+
+The following screenshot shows the process after the operator activates the START command. The MOTOR indicator becomes active and the process status changes to RUNNING.
+
+
+
+!\[FactoryTalk Optix HMI - RUNNING](../../screenshots/hmi-plc/02-hmi-running.png)
+
+
+
+```text
+
+START = TRUE
+
+MOTOR = TRUE
+
+LED   = Green
+
+Status = RUNNING
+
+```
+
+
+
+The test demonstrated successful communication across the complete process path:
+
+
+
+```text
+
+HMI
+
+&#x20;↓
+
+Modbus TCP
+
+&#x20;↓
+
+PLC Memory
+
+&#x20;↓
+
+Ladder Logic
+
+&#x20;↓
+
+PLC Output State
+
+&#x20;↓
+
+Modbus TCP
+
+&#x20;↓
+
+HMI Visualization
+
+```
+
+
+
+\---
+
+
+
+\## 8. Wireshark Modbus TCP Analysis
+
+
+
+Wireshark was used on the HMI to observe the industrial communication between:
+
+
+
+```text
+
+192.168.20.20 → FactoryTalk Optix HMI
+
+192.168.20.30 → OpenPLC
+
+```
+
+
+
+The initial display filter was:
+
+
+
+```text
+
+tcp.port == 502
+
+```
+
+
+
+Wireshark successfully identified the traffic as Modbus TCP.
+
+
+
+\---
+
+
+
+\## 9. Normal HMI Polling — FC01 Read Coils
+
+
+
+
+
+Normal HMI polling was identified as:
+
+
+
+```text
+
+Function Code:    01 - Read Coils
+
+Source:           192.168.20.20
+
+Destination:      192.168.20.30
+
+Reference Number: 8192
+
+Bit Count:        2
+
+Unit Identifier:  1
+
+```
+
+
+
+FactoryTalk Optix reads two contiguous coils in a single request:
+
+
+
+```text
+
+Coil 8192 → START
+
+Coil 8193 → MOTOR
+
+```
+
+
+
+This demonstrates that the HMI optimizes the polling of contiguous Boolean tags.
+
+
+
+A STOPPED response showed:
+
+
+
+```text
+
+Bit 8192 = FALSE
+
+Bit 8193 = FALSE
+
+```
+
+
+
+corresponding to:
+
+
+
+```text
+
+START = FALSE
+
+MOTOR = FALSE
+
+Process State = STOPPED
+
+```
+
+
+
+\---
+
+
+
+\## 10. Operator Command — FC15 Write Multiple Coils
+
+
+
+\### Wireshark Evidence — FC01 Read Coils
+
+
+
+The following packet capture shows the normal Modbus TCP polling operation from the HMI to the PLC.
+
+
+
+The HMI reads two contiguous coils starting at address 8192:
+
+
+
+\- Coil 8192 — START
+
+\- Coil 8193 — MOTOR
+
+
+
+!\[Wireshark - Modbus FC01 Read Coils](../../screenshots/hmi-plc/03-wireshark-fc01-read-coils.png)
+
+
+
+\### Wireshark Evidence — FC01 Read Coils
+
+
+
+The following packet capture shows the normal Modbus TCP polling operation from the HMI to the PLC.
+
+
+
+The HMI reads two contiguous coils starting at address 8192:
+
+
+
+\- Coil 8192 — START
+
+\- Coil 8193 — MOTOR
+
+
+
+!\[Wireshark - Modbus FC01 Read Coils](../../screenshots/hmi-plc/03-wireshark-fc01-read-coils.png)
+
+
+
+The START command was analyzed separately.
+
+
+
+An important observation was that FactoryTalk Optix uses:
+
+
+
+```text
+
+Function Code: 15 - Write Multiple Coils
+
+```
+
+
+
+even when writing a single Boolean value.
+
+
+
+When the operator pressed START, Wireshark showed:
+
+
+
+```text
+
+Source:           192.168.20.20
+
+Destination:      192.168.20.30
+
+Function Code:    15
+
+Reference Number: 8192
+
+Bit Count:        1
+
+Bit 8192:         TRUE
+
+```
+
+
+
+When the button was released:
+
+
+
+```text
+
+Reference Number: 8192
+
+Bit 8192:         FALSE
+
+```
+
+
+
+Therefore:
+
+
+
+```text
+
+START pressed
+
+&#x20;    ↓
+
+FC15 Write Multiple Coils
+
+&#x20;    ↓
+
+Coil 8192 = TRUE
+
+&#x20;    ↓
+
+PLC START = TRUE
+
+```
+
+
+
+This was an important protocol-level finding because the expected write behavior should be determined from observed network traffic rather than assumed from the HMI configuration.
+
+
+
+\---
+
+
+
+\## 11. Initial OT Network Baseline
+
+
+
+The packet capture established an initial baseline for normal HMI-to-PLC communication.
+
+
+
+\### Expected Communication
+
+
+
+```text
+
+HMI: 192.168.20.20
+
+&#x20;       |
+
+&#x20;       | FC01 Read Coils
+
+&#x20;       | Reference 8192
+
+&#x20;       | Count 2
+
+&#x20;       v
+
+PLC: 192.168.20.30
+
+
+
+HMI: 192.168.20.20
+
+&#x20;       |
+
+&#x20;       | FC15 Write Multiple Coils
+
+&#x20;       | Reference 8192
+
+&#x20;       | Count 1
+
+&#x20;       v
+
+PLC: 192.168.20.30
+
+```
+
+
+
+The expected OT flow can therefore be summarized as:
+
+
+
+| Source | Destination | Port | Modbus Function | Purpose |
+
+|---|---|---:|---|---|
+
+| HMI | PLC | TCP/502 | FC01 Read Coils | Process monitoring |
+
+| HMI | PLC | TCP/502 | FC15 Write Multiple Coils | START command |
+
+
+
+This baseline can later be used to identify deviations such as:
+
+
+
+\- An unexpected source communicating with the PLC.
+
+\- Unexpected Modbus write operations.
+
+\- Access to unexpected coil addresses.
+
+\- New industrial protocols.
+
+\- Abnormal communication patterns.
+
+
+
+\---
+
+
+
+\## 12. ISA/IEC 62443 Mapping
+
+
+
+\### FR3 — System Integrity
+
+
+
+The lab verified that the HMI command modified the intended PLC variable and produced the expected ladder logic behavior.
+
+
+
+This demonstrates why network connectivity alone is insufficient when validating an industrial control system.
+
+
+
+\### FR5 — Restricted Data Flow
+
+
+
+The expected industrial communication flow was explicitly identified:
+
+
+
+```text
+
+HMI 192.168.20.20
+
+&#x20;       ↓
+
+Modbus TCP/502
+
+&#x20;       ↓
+
+PLC 192.168.20.30
+
+```
+
+
+
+A future phase will enforce stronger segmentation by placing HMI and PLC assets in separate security zones.
+
+
+
+\### FR6 — Timely Response to Events
+
+
+
+Wireshark was used to establish a baseline of expected Modbus communication.
+
+
+
+Future monitoring and IDS phases can use this baseline to detect unexpected sources, protocols, addresses, or Modbus write operations.
+
+
+
+\---
+
+
+
+\## 13. Security Finding
+
+
+
+The HMI and PLC currently reside in the same OT subnet:
+
+
+
+```text
+
+192.168.20.0/24
+
+```
+
+
+
+As a result, their direct communication does not traverse pfSense.
+
+
+
+This means pfSense can protect communication entering or leaving the OT network, but it cannot currently enforce HMI-to-PLC microsegmentation between these two assets.
+
+
+
+A future architecture improvement will place the HMI and PLC in separate security zones/subnets and allow only explicitly required communication between them.
+
+
+
+For example:
+
+
+
+```text
+
+HMI Zone
+
+&#x20;  |
+
+&#x20;  | Allowed Conduit: Modbus TCP/502
+
+&#x20;  |
+
+Control Zone
+
+&#x20;  |
+
+&#x20;  PLC
+
+```
+
+
+
+This will provide a stronger practical implementation of ISA/IEC 62443 Zones and Conduits.
+
+
+
+\---
+
+
+
+\## 14. Lessons Learned
+
+
+
+This lab demonstrated several important OT cybersecurity principles:
+
+
+
+1\. Successful IP connectivity does not prove application-layer functionality.
+
+2\. An open TCP/502 port does not prove correct Modbus addressing.
+
+3\. Successful Modbus communication does not prove correct PLC process behavior.
+
+4\. Industrial protocol traffic should be validated against the intended process logic.
+
+5\. Read operations and write operations have different security implications.
+
+6\. A known-good traffic baseline is important for identifying abnormal OT behavior.
+
+7\. Same-subnet industrial assets cannot be fully segmented by a routed firewall.
+
+8\. Packet analysis can reveal implementation details that are not obvious from HMI configuration alone.
+
+
+
+A useful troubleshooting model from this lab is:
+
+
+
+```text
+
+Network
+
+&#x20;  ↓
+
+TCP
+
+&#x20;  ↓
+
+Modbus
+
+&#x20;  ↓
+
+Addressing
+
+&#x20;  ↓
+
+PLC Memory
+
+&#x20;  ↓
+
+Ladder Logic
+
+&#x20;  ↓
+
+Process
+
+&#x20;  ↓
+
+Security Impact
+
+```
+
+
+
+\---
+
+
+
+\## Conclusion
+
+
+
+FactoryTalk Optix was successfully integrated with OpenPLC using Modbus TCP.
+
+
+
+The HMI can issue a START command through Modbus Coil 8192, while the PLC exposes MOTOR status through Coil 8193.
+
+
+
+Wireshark analysis confirmed normal FC01 polling and FC15 control operations, providing an initial network baseline for future OT cybersecurity exercises.
+
+
+
+The next phase of the lab will use this known-good baseline to validate network segmentation, unauthorized access controls, monitoring, and detection capabilities.
+
