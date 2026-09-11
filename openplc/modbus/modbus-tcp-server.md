@@ -522,7 +522,6 @@ FALSE to Coil 8192.
 
 The PLC returned both START and MOTOR to the expected OFF state:
 
-```text
 START / Coil 8192: False
 MOTOR / Coil 8193: False
 
