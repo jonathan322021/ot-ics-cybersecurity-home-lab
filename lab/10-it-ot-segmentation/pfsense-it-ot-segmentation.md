@@ -1,8 +1,8 @@
-\# IT/OT Network Segmentation with pfSense
+# IT/OT Network Segmentation with pfSense
 
 
 
-\## Objective
+## Objective
 
 
 
@@ -14,11 +14,11 @@ The security policy was designed according to the principle of least privilege:
 
 
 
-\- An authorized Windows administrative workstation is allowed to access the OpenPLC Runtime management service on TCP port 8443.
+- An authorized Windows administrative workstation is allowed to access the OpenPLC Runtime management service on TCP port 8443.
 
-\- A Kali Linux workstation located in the IT network is not allowed to access the OpenPLC Modbus TCP service on TCP port 502.
+- A Kali Linux workstation located in the IT network is not allowed to access the OpenPLC Modbus TCP service on TCP port 502.
 
-\- General IT-to-OT communication is blocked unless explicitly authorized.
+- General IT-to-OT communication is blocked unless explicitly authorized.
 
 
 
@@ -26,11 +26,11 @@ This lab provides practical evidence of network segmentation and restricted data
 
 
 
-\---
+---
 
 
 
-\## ISA/IEC 62443 Security Concept
+## ISA/IEC 62443 Security Concept
 
 
 
@@ -38,7 +38,7 @@ This exercise is primarily related to:
 
 
 
-\### FR5 - Restricted Data Flow
+### FR5 - Restricted Data Flow
 
 
 
@@ -54,13 +54,13 @@ In this lab:
 
 
 
-\- The IT network represents the IT Zone.
+- The IT network represents the IT Zone.
 
-\- The OT network represents the OT Zone.
+- The OT network represents the OT Zone.
 
-\- pfSense controls communication between the two networks.
+- pfSense controls communication between the two networks.
 
-\- Specific firewall rules determine which traffic is allowed to cross the IT/OT boundary.
+- Specific firewall rules determine which traffic is allowed to cross the IT/OT boundary.
 
 
 
@@ -68,67 +68,66 @@ The security objective is not simply to provide network connectivity. Communicat
 
 
 
-\---
+---
 
 
 
-\## Lab Architecture
+## Lab Architecture
 
 
 
 ```text
 
-&#x20;                    IT ZONE
+#x20;                    IT ZONE
 
-&#x20;                192.168.10.0/24
+#x20;                192.168.10.0/24
 
 
 
-&#x20;       +-------------------------------+
+#x20;       +-------------------------------+
 
-&#x20;       |                               |
+#x20;       |                               |
 
-&#x20;       |                               |
+#x20;       |                               |
 
 Windows Admin                       Kali Linux
 
 192.168.10.100                    192.168.10.50
 
-&#x20;       |                               |
+#x20;       |                               |
 
-&#x20;       +---------------+---------------+
+#x20;       +---------------+---------------+
 
-&#x20;                       |
+#x20;                       |
 
-&#x20;                       |
+#x20;                       |
 
-&#x20;                    pfSense
+#x20;                    pfSense
 
-&#x20;                LAN: 192.168.10.1
+#x20;                LAN: 192.168.10.1
 
-&#x20;                       |
+#x20;                       |
 
-&#x20;                Firewall Policy
+#x20;                Firewall Policy
 
-&#x20;                       |
+#x20;                       |
 
-&#x20;                       |
+#x20;                       |
 
-&#x20;                    OT ZONE
+#x20;                    OT ZONE
 
-&#x20;                192.168.20.0/24
+#x20;                192.168.20.0/24
 
-&#x20;                       |
+#x20;                       |
 
-&#x20;                       |
+#x20;                       |
+#x20;                    OpenPLC
 
-&#x20;                    OpenPLC
+#x20;                 192.168.20.30
 
-&#x20;                 192.168.20.30
+#x20;                  /          \\
 
-&#x20;                  /          \\
+#x20;             TCP/8443       TCP/502
 
-&#x20;             TCP/8443       TCP/502
-
-&#x20;             Management     Modbus TCP
+#x20;             Management     Modbus TCP
 
