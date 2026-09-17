@@ -76,11 +76,12 @@ The security objective is not simply to provide network connectivity. Communicat
 
 
 
+```text
 
 
-#x20;                    IT ZONE
+                  IT ZONE
 
-#x20;                192.168.10.0/24
+               192.168.10.0/24
 
 
 
