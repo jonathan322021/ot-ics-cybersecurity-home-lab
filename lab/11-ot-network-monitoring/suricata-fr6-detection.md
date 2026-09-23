@@ -1,8 +1,8 @@
-\# OT Network Monitoring and Detection with Suricata
+# OT Network Monitoring and Detection with Suricata
 
 
 
-\## Overview
+## Overview
 
 
 
@@ -18,11 +18,11 @@ The lab correlates an unauthorized Modbus TCP connection attempt from an IT asse
 
 
 
-\- a Suricata IDS alert;
+- a Suricata IDS alert;
 
-\- a pfSense firewall block event;
+- a pfSense firewall block event;
 
-\- the originating connection attempt from Kali Linux.
+- the originating connection attempt from Kali Linux.
 
 
 
@@ -30,17 +30,17 @@ The exercise demonstrates concepts related to ISA/IEC 62443:
 
 
 
-\- FR5 — Restricted Data Flow
+- FR5 — Restricted Data Flow
 
-\- FR6 — Timely Response to Events
-
-
-
-\---
+- FR6 — Timely Response to Events
 
 
 
-\## Lab Architecture
+---
+
+
+
+## Lab Architecture
 
 
 
@@ -120,11 +120,11 @@ OpenPLC
 
 
 
-\---
+---
 
 
 
-\## Assets and Network Roles
+## Assets and Network Roles
 
 
 
@@ -144,11 +144,11 @@ OpenPLC
 
 
 
-\---
+---
 
 
 
-\## Security Objective
+## Security Objective
 
 
 
@@ -194,15 +194,15 @@ Suricata:     ALERT
 
 
 
-\---
+---
 
 
 
-\## ISA/IEC 62443 Security Concepts
+## ISA/IEC 62443 Security Concepts
 
 
 
-\### FR5 — Restricted Data Flow
+### FR5 — Restricted Data Flow
 
 
 
@@ -230,7 +230,7 @@ prevents unauthorized IT systems from directly accessing OT assets.
 
 
 
-\### FR6 — Timely Response to Events
+### FR6 — Timely Response to Events
 
 
 
@@ -260,11 +260,11 @@ Together they provide complementary security controls.
 
 
 
-\---
+---
 
 
 
-\## Suricata Deployment
+## Suricata Deployment
 
 
 
@@ -298,11 +298,11 @@ This separation makes it possible to distinguish detection from prevention durin
 
 
 
-\---
+---
 
 
 
-\## IDS Rule Source
+## IDS Rule Source
 
 
 
@@ -318,11 +318,11 @@ A custom rule was then created specifically for the OT lab.
 
 
 
-\---
+---
 
 
 
-\## Custom OT Detection Rule
+## Custom OT Detection Rule
 
 
 
@@ -338,7 +338,7 @@ alert tcp 192.168.10.50 any -> 192.168.20.30 502 (msg:"OT-LAB Unauthorized IT to
 
 
 
-\### Rule Breakdown
+### Rule Breakdown
 
 
 
@@ -372,11 +372,11 @@ The SYN flag was selected because the firewall blocks the connection before a fu
 
 
 
-\---
+---
 
 
 
-\## Controlled Security Test
+## Controlled Security Test
 
 
 
@@ -418,7 +418,7 @@ The result must be correlated with firewall and IDS telemetry.
 
 
 
-\## Suricata Detection
+## Suricata Detection
 
 
 
@@ -466,11 +466,11 @@ Multiple alerts were observed because TCP retransmitted SYN packets while waitin
 
 
 
-\---
+---
 
 
 
-\## Firewall Correlation
+## Firewall Correlation
 
 
 
@@ -520,11 +520,11 @@ The events occurred at matching timestamps:
 
 
 
-\---
+---
 
 
 
-\## Event Correlation
+## Event Correlation
 
 
 
@@ -588,11 +588,11 @@ This correlation provides stronger evidence than relying on a single telemetry s
 
 
 
-\---
+---
 
 
 
-\## Detection vs Enforcement
+## Detection vs Enforcement
 
 
 
@@ -600,7 +600,7 @@ This exercise demonstrates an important security distinction.
 
 
 
-\### Detection
+### Detection
 
 
 
@@ -660,15 +660,15 @@ The IDS does not replace the firewall, and the firewall does not replace monitor
 
 
 
-\---
+---
 
 
 
-\## Security Findings
+## Security Findings
 
 
 
-\### Finding 1 — Unauthorized IT-to-OT Modbus traffic is blocked
+### Finding 1 — Unauthorized IT-to-OT Modbus traffic is blocked
 
 
 
@@ -676,7 +676,7 @@ The existing segmentation policy successfully prevented Kali from reaching the O
 
 
 
-\### Finding 2 — Unauthorized attempts are detectable
+### Finding 2 — Unauthorized attempts are detectable
 
 
 
@@ -684,7 +684,7 @@ Suricata successfully generated an alert for the prohibited communication attemp
 
 
 
-\### Finding 3 — IDS and firewall telemetry can be correlated
+### Finding 3 — IDS and firewall telemetry can be correlated
 
 
 
@@ -692,7 +692,7 @@ Source address, destination address, destination port, protocol, and timestamps 
 
 
 
-\### Finding 4 — TCP retransmissions create multiple observable events
+### Finding 4 — TCP retransmissions create multiple observable events
 
 
 
@@ -704,11 +704,11 @@ These retransmissions were visible in both IDS and firewall telemetry.
 
 
 
-\---
+---
 
 
 
-\## ISA/IEC 62443 Mapping
+## ISA/IEC 62443 Mapping
 
 
 
@@ -732,11 +732,11 @@ These retransmissions were visible in both IDS and firewall telemetry.
 
 
 
-\---
+---
 
 
 
-\## Limitations and Architectural Observation
+## Limitations and Architectural Observation
 
 
 
@@ -766,11 +766,11 @@ A future lab phase will address this limitation using improved OT zone segmentat
 
 
 
-\---
+---
 
 
 
-\## Lessons Learned
+## Lessons Learned
 
 
 
@@ -778,29 +778,29 @@ This exercise demonstrated that:
 
 
 
-\- Firewall enforcement and IDS detection solve different security problems.
+- Firewall enforcement and IDS detection solve different security problems.
 
-\- A blocked connection attempt can still provide valuable security telemetry.
+- A blocked connection attempt can still provide valuable security telemetry.
 
-\- A TCP timeout alone is not proof of firewall enforcement.
+- A TCP timeout alone is not proof of firewall enforcement.
 
-\- Security events should be correlated across multiple telemetry sources.
+- Security events should be correlated across multiple telemetry sources.
 
-\- TCP retransmissions explain repeated alerts for the same connection attempt.
+- TCP retransmissions explain repeated alerts for the same connection attempt.
 
-\- Custom IDS signatures can encode expected OT communication policy.
+- Custom IDS signatures can encode expected OT communication policy.
 
-\- Monitoring architecture depends heavily on network topology and traffic visibility.
+- Monitoring architecture depends heavily on network topology and traffic visibility.
 
-\- ISA/IEC 62443 FR5 and FR6 can be implemented as complementary controls.
-
-
-
-\---
+- ISA/IEC 62443 FR5 and FR6 can be implemented as complementary controls.
 
 
 
-\## Result
+---
+
+
+
+## Result
 
 
 
